@@ -13,10 +13,6 @@ export class UserService {
       where: { email: user.email },
     });
 
-    if (findUser) {
-      throw new UserErrors.UserAccountAlreadyExistsError();
-    }
-
     await this.prisma.user.create({
       data: {
         id: uuid(),
