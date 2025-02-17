@@ -1,0 +1,11 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsString } from 'class-validator';
+
+export class createNewsletterDTO {
+  resource_id: string;
+  userId: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_channel?: string;
+}
