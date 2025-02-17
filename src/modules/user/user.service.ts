@@ -8,17 +8,14 @@ import { UserErrors } from './user.errors';
 export class UserService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(user: CreateUserAccountDTO): Promise<void> {
-    const findUser = await this.prisma.user.findUnique({
-      where: { email: user.email },
-    });
-
-    await this.prisma.user.create({
+  async createUser(user: CreateUserAccountDTO) {
+    const newUser = await this.prisma.user.create({
       data: {
         id: uuid(),
         email: user.email,
         isAdmin: false,
       },
     });
+    return newUser;
   }
 }
