@@ -19,9 +19,7 @@ model User {
   isAdmin        Boolean    @default(false)
   current_streak Int        @default(0)
   best_streak    Int        @default(0)
-  user_level_id  String     @db.Uuid
-
-  level          Levels     @relation(fields: [user_level_id], references: [id]) 
+  level          Int        @default(1)
 
   newsletters    Newsletters[]
 }
@@ -37,12 +35,4 @@ model Newsletters {
   utm_channel   String?
 
   user          User       @relation(fields: [userId], references: [id]) 
-}
-
-model Levels {
-  id            String     @id @default(uuid()) @db.Uuid
-  level         Int        @default(1)
-  threshold     Int        @default(7)
-
-  user          User[]
 }

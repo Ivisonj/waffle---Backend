@@ -24,8 +24,12 @@ export class UserService {
         id: uuid(),
         email: user.email,
         isAdmin: false,
+        current_streak: 1,
+        best_streak: 1,
+        level: 1,
       },
     });
+
     return newUser;
   }
 
