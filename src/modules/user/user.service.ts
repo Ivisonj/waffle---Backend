@@ -3,6 +3,8 @@ import { JwtService } from '@nestjs/jwt';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/shared/infra/database/prisma.service';
 import { CreateUserAccountDTO } from './user.DTO';
+import { UserDashboardResponse } from './user.DTO';
+import { MessageResponse } from './user.messageResponse';
 import { UserErrors } from './user.errors';
 
 export interface SignInResponse {
@@ -48,6 +50,28 @@ export class UserService {
       access_token: access_token,
       email: user.email,
       isAdmin: user.isAdmin,
+    };
+  }
+
+  async getUserDashboard(userId: string): Promise<UserDashboardResponse> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    const newsletters = await this.prisma.newsletters.findMany({
+      where: { userId: userId },
+    });
+
+    return {
+      current_streak: user.current_streak,
+      best_streak: user.best_streak,
+      level: user.best_streak,
+      openingHistory: newsletters,
+      messages: [
+        new MessageResponse(user.current_streak).getCurrentStreakMessage(),
+        new MessageResponse(user.best_streak).getBestStreakMessage(),
+        new MessageResponse(user.level).getLevelMessage(),
+      ],
     };
   }
 }
