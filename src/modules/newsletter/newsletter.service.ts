@@ -13,7 +13,7 @@ export class NewsletterService {
         id: uuid(),
         resource_id: newsletter.resource_id,
         userId: newsletter.userId,
-        opened_at: new Date('2025-02-13'),
+        opened_at: new Date(2025, 1, 10),
         utm_source: newsletter.utm_source,
         utm_medium: newsletter.utm_medium,
         utm_campaign: newsletter.utm_campaign,
@@ -35,28 +35,59 @@ export class NewsletterService {
         },
       });
 
-      const lastOpening = new Date(findLastOpening.opened_at);
-      const lastDay = lastOpening.getDay() + 1;
-      console.log('lastDay', lastDay);
-      const currentDate = new Date();
-      const currentDay = currentDate.getDay() + 1;
-      console.log('currentDay', currentDay);
+      if (!findLastOpening) {
+        await this.prisma.user.update({
+          where: { id: newsletter.userId },
+          data: {
+            current_streak: 1,
+          },
+        });
+        return;
+      }
 
-      const isConsecutiveDay = lastDay + 1 === currentDay;
+      const lastOpeningDate = new Date(findLastOpening.opened_at);
+      const lastOpeningDay = lastOpeningDate.getDay();
+      const currentDate = new Date();
+      const currentDay = currentDate.getDay();
+
+      const isConsecutiveDay =
+        (lastOpeningDay === 6 && currentDay === 1) ||
+        currentDay === lastOpeningDay + 1;
 
       if (isConsecutiveDay) {
-        await this.prisma.user.update({
+        const updatedCurrent_streak = await this.prisma.user.update({
           where: { id: newsletter.userId },
           data: {
             current_streak: { increment: 1 },
           },
         });
-      }
-      if (!isConsecutiveDay) {
+
+        if (updatedCurrent_streak.current_streak % 6 === 0) {
+          await this.prisma.user.update({
+            where: { id: newsletter.userId },
+            data: {
+              level: { increment: 1 },
+            },
+          });
+        }
+      } else {
+        const user = await this.prisma.user.findUnique({
+          where: { id: newsletter.userId },
+        });
+
+        if (user.current_streak > user.best_streak) {
+          await this.prisma.user.update({
+            where: { id: newsletter.userId },
+            data: {
+              best_streak: user.current_streak,
+            },
+          });
+        }
+
         await this.prisma.user.update({
           where: { id: newsletter.userId },
           data: {
-            current_streak: 0,
+            current_streak: 1,
           },
         });
       }
