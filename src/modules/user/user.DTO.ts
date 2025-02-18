@@ -9,7 +9,13 @@ export class CreateUserAccountDTO {
   email: string;
 }
 
-interface OpeningHistoryTypes {
+export class SignInResponse {
+  access_token: string;
+  email: string;
+  isAdmin: boolean;
+}
+
+interface IOpeningHistory {
   id: string;
   resource_id: string;
   opened_at: Date;
@@ -27,7 +33,22 @@ export class UserDashboardResponse {
   @ApiProperty()
   level: number;
   @ApiProperty()
-  openingHistory: OpeningHistoryTypes[];
+  openingHistory: IOpeningHistory[];
   @ApiProperty()
   messages: string[];
+}
+
+export interface IReaders {
+  name: string;
+  email: string;
+  current_streak: number;
+}
+
+export class AdminDashboardResponse {
+  @ApiProperty()
+  totalReaders: number;
+  @ApiProperty()
+  totalOpenings: number;
+  @ApiProperty()
+  readers: IReaders[];
 }

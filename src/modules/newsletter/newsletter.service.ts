@@ -13,7 +13,7 @@ export class NewsletterService {
         id: uuid(),
         resource_id: newsletter.resource_id,
         userId: newsletter.userId,
-        opened_at: new Date(2025, 1, 10),
+        opened_at: new Date(),
         utm_source: newsletter.utm_source,
         utm_medium: newsletter.utm_medium,
         utm_campaign: newsletter.utm_campaign,

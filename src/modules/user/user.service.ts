@@ -2,16 +2,14 @@ import { v4 as uuid } from 'uuid';
 import { JwtService } from '@nestjs/jwt';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/shared/infra/database/prisma.service';
-import { CreateUserAccountDTO } from './user.DTO';
-import { UserDashboardResponse } from './user.DTO';
+import { CreateUserAccountDTO, IReaders } from './user.DTO';
+import {
+  UserDashboardResponse,
+  SignInResponse,
+  AdminDashboardResponse,
+} from './user.DTO';
 import { MessageResponse } from './user.messageResponse';
 import { UserErrors } from './user.errors';
-
-export interface SignInResponse {
-  access_token: string;
-  email: string;
-  isAdmin: boolean;
-}
 
 @Injectable()
 export class UserService {
@@ -58,6 +56,10 @@ export class UserService {
       where: { id: userId },
     });
 
+    if (userId !== user.id) {
+      throw new UserErrors.Unauthorized();
+    }
+
     const newsletters = await this.prisma.newsletters.findMany({
       where: { userId: userId },
     });
@@ -65,13 +67,39 @@ export class UserService {
     return {
       current_streak: user.current_streak,
       best_streak: user.best_streak,
-      level: user.best_streak,
-      openingHistory: newsletters,
+      level: user.level,
+      openingHistory: newsletters.map((n) => ({
+        id: n.id,
+        resource_id: n.resource_id,
+        opened_at: n.opened_at,
+        utm_source: n.utm_source,
+        utm_medium: n.utm_medium,
+        utm_campaign: n.utm_campaign,
+        utm_channel: n.utm_channel,
+      })),
       messages: [
         new MessageResponse(user.current_streak).getCurrentStreakMessage(),
         new MessageResponse(user.best_streak).getBestStreakMessage(),
         new MessageResponse(user.level).getLevelMessage(),
       ],
+    };
+  }
+
+  async getAdminDashboard(userId: string): Promise<AdminDashboardResponse> {
+    const users = await this.prisma.user.findMany({
+      orderBy: { current_streak: 'desc' },
+    });
+
+    const newsletters = await this.prisma.newsletters.findMany({});
+
+    return {
+      totalReaders: users.length,
+      totalOpenings: newsletters.length,
+      readers: users.map((u) => ({
+        name: u.name,
+        email: u.email,
+        current_streak: u.current_streak,
+      })),
     };
   }
 }
