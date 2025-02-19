@@ -114,12 +114,12 @@ export class UserService {
   async getTimeSerie(
     userId: string,
     period: 'week' | 'month',
-  ): Promise<TimeSerieResponse[]> {
+  ): Promise<{ label: string; total: number }[]> {
     const adminUser = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
-    if (!adminUser || userId !== adminUser.id) {
+    if (userId !== adminUser.id) {
       throw new UserErrors.Unauthorized();
     }
 
@@ -145,20 +145,53 @@ export class UserService {
       },
     });
 
-    const grouped: Record<string, number> = {};
+    if (period === 'month') {
+      const months = [
+        'Jan',
+        'Fev',
+        'Mar',
+        'Abr',
+        'Mai',
+        'Jun',
+        'Jul',
+        'Ago',
+        'Set',
+        'Out',
+        'Nov',
+        'Dez',
+      ];
+      const grouped: Record<string, number> = {};
 
-    newsletters.forEach((newsletter) => {
-      const dateKey = newsletter.opened_at.toISOString().slice(0, 10);
-      grouped[dateKey] = (grouped[dateKey] || 0) + 1;
-    });
+      newsletters.forEach((newsletter) => {
+        const monthIndex = newsletter.opened_at.getMonth();
+        const monthLabel = months[monthIndex];
+        grouped[monthLabel] = (grouped[monthLabel] || 0) + 1;
+      });
 
-    const timeSeries: TimeSerieResponse[] = Object.entries(grouped)
-      .map(([date, total]) => ({
-        day: new Date(date),
-        total,
-      }))
-      .sort((a, b) => a.day.getTime() - b.day.getTime());
+      const result = Object.entries(grouped)
+        .map(([label, total]) => ({ label, total }))
+        .sort((a, b) => months.indexOf(a.label) - months.indexOf(b.label));
 
-    return timeSeries;
+      return result;
+    }
+
+    if (period === 'week') {
+      const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'];
+      const grouped: Record<string, number> = {};
+
+      newsletters.forEach((newsletter) => {
+        const day = newsletter.opened_at.getDay();
+        const dayLabel = day === 0 ? 'Dom' : weekDays[day - 1];
+        grouped[dayLabel] = (grouped[dayLabel] || 0) + 1;
+      });
+
+      const result = Object.entries(grouped)
+        .map(([label, total]) => ({ label, total }))
+        .sort((a, b) => weekDays.indexOf(a.label) - weekDays.indexOf(b.label));
+
+      return result;
+    }
+
+    return [];
   }
 }
