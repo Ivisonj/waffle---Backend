@@ -38,11 +38,9 @@ export class UserDashboardResponse {
   messages: string[];
 }
 
-export class AdminDashboardResponse {
+export class UsersByPeriodReponse {
   @ApiProperty()
   totalReaders: number;
-  @ApiProperty()
-  totalOpenings: number;
 }
 
 export interface IReaders {
@@ -58,7 +56,7 @@ export class ReadersRankingResponse {
 
 export class TimeSerieResponse {
   @ApiProperty()
-  day: Date;
+  label: string;
   @ApiProperty()
   total: number;
 }

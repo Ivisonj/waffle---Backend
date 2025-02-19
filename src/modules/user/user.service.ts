@@ -4,15 +4,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/shared/infra/database/prisma.service';
 import {
   CreateUserAccountDTO,
-  IReaders,
   ReadersRankingResponse,
   TimeSerieResponse,
+  UsersByPeriodReponse,
 } from './user.DTO';
-import {
-  UserDashboardResponse,
-  SignInResponse,
-  AdminDashboardResponse,
-} from './user.DTO';
+import { UserDashboardResponse, SignInResponse } from './user.DTO';
 import { MessageResponse } from './user.messageResponse';
 import { UserErrors } from './user.errors';
 
@@ -90,7 +86,10 @@ export class UserService {
     };
   }
 
-  async getAdminDashboard(userId: string): Promise<AdminDashboardResponse> {
+  async getUsersByPeriod(
+    userId: string,
+    period: 'week' | 'month' | 'year',
+  ): Promise<UsersByPeriodReponse> {
     const adminUser = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -99,16 +98,33 @@ export class UserService {
       throw new UserErrors.Unauthorized();
     }
 
+    const today = new Date();
+    let startDate: Date;
+
+    if (period === 'year') {
+      startDate = new Date(today);
+      startDate.setFullYear(today.getFullYear() - 1);
+    } else if (period === 'month') {
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - 30);
+    } else if (period === 'week') {
+      const dayOfWeek = today.getDay();
+      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - diff);
+      startDate.setHours(0, 0, 0, 0);
+    }
+
     const users = await this.prisma.user.findMany({
-      orderBy: { current_streak: 'desc' },
+      where: {
+        created_at: {
+          gte: startDate,
+          lte: today,
+        },
+      },
     });
 
-    const newsletters = await this.prisma.newsletters.findMany({});
-
-    return {
-      totalReaders: users.length,
-      totalOpenings: newsletters.length,
-    };
+    return { totalReaders: users.length };
   }
 
   async readersRanking(userId: string): Promise<ReadersRankingResponse> {
@@ -136,7 +152,7 @@ export class UserService {
   async getTimeSerie(
     userId: string,
     period: 'week' | 'month',
-  ): Promise<{ label: string; total: number }[]> {
+  ): Promise<TimeSerieResponse[]> {
     const adminUser = await this.prisma.user.findUnique({
       where: { id: userId },
     });

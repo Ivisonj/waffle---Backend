@@ -21,12 +21,14 @@ model User {
   current_streak Int        @default(0)
   best_streak    Int        @default(0)
   level          Int        @default(1)
+  created_at     DateTime   @default(now())
 
   newsletters    Newsletters[]
 }
 
 model Newsletters {
   id            String     @id @default(uuid()) @db.Uuid
+  name          String?
   resource_id   String
   userId        String     @db.Uuid
   opened_at     DateTime   @default(now())

@@ -44,11 +44,14 @@ export class UserController {
   }
 
   @UseGuards(AuthGuard)
-  @Get('admin/dashboard')
-  async adminDashboard(@Req() headerData: UserHeaderDataDTO) {
+  @Get('admin/users/period/:period')
+  async getUsersByPeriod(
+    @Req() headerData: UserHeaderDataDTO,
+    @Param('period') paramData: 'week' | 'month' | 'year',
+  ) {
     try {
       const userId = headerData.userId;
-      const data = await this.repo.getAdminDashboard(userId);
+      const data = await this.repo.getUsersByPeriod(userId, paramData);
       return data;
     } catch (error) {
       if (error.message === UserErrors) {
