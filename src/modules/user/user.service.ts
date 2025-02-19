@@ -2,12 +2,13 @@ import { v4 as uuid } from 'uuid';
 import { JwtService } from '@nestjs/jwt';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/shared/infra/database/prisma.service';
-import { CreateUserAccountDTO, IReaders } from './user.DTO';
 import {
-  UserDashboardResponse,
-  SignInResponse,
-  AdminDashboardResponse,
+  CreateUserAccountDTO,
+  ReadersRankingResponse,
+  TimeSerieResponse,
+  UsersMetricReponse,
 } from './user.DTO';
+import { UserDashboardResponse, SignInResponse } from './user.DTO';
 import { MessageResponse } from './user.messageResponse';
 import { UserErrors } from './user.errors';
 
@@ -85,21 +86,201 @@ export class UserService {
     };
   }
 
-  async getAdminDashboard(userId: string): Promise<AdminDashboardResponse> {
+  async getUsersByPeriod(
+    userId: string,
+    period: 'week' | 'month' | 'year',
+  ): Promise<UsersMetricReponse> {
+    const adminUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (userId !== adminUser.id) {
+      throw new UserErrors.Unauthorized();
+    }
+
+    const today = new Date();
+    let startDate: Date;
+
+    if (period === 'year') {
+      startDate = new Date(today);
+      startDate.setFullYear(today.getFullYear() - 1);
+    } else if (period === 'month') {
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - 30);
+    } else if (period === 'week') {
+      const dayOfWeek = today.getDay();
+      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - diff);
+      startDate.setHours(0, 0, 0, 0);
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        created_at: {
+          gte: startDate,
+          lte: today,
+        },
+      },
+    });
+
+    return { totalReaders: users.length };
+  }
+
+  async getUsersByActivityStatus(
+    userId,
+    status: 'all' | 'active' | 'inactive',
+  ): Promise<UsersMetricReponse> {
+    const adminUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (userId !== adminUser.id) {
+      throw new UserErrors.Unauthorized();
+    }
+
+    if (status === 'all') {
+      const users = await this.prisma.user.findMany({});
+      return { totalReaders: users.length };
+    } else if (status === 'active') {
+      const activeUsers = await this.prisma.user.findMany({
+        where: { current_streak: { gt: 1 } },
+      });
+      return { totalReaders: activeUsers.length };
+    } else {
+      const inactiveUsers = await this.prisma.user.findMany({
+        where: { current_streak: 1 },
+      });
+      return { totalReaders: inactiveUsers.length };
+    }
+  }
+
+  async getUsersByNewsletter(
+    userId: string,
+    resource_id: string,
+  ): Promise<UsersMetricReponse> {
+    const adminUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (userId !== adminUser.id) {
+      throw new UserErrors.Unauthorized();
+    }
+
+    const newsletterOpens = await this.prisma.newsletters.findMany({
+      where: { resource_id },
+    });
+
+    const uniqueUsers = Array.from(
+      new Set(newsletterOpens.map((nl) => nl.userId)),
+    );
+
+    return { totalReaders: uniqueUsers.length };
+  }
+
+  async readersRanking(userId: string): Promise<ReadersRankingResponse> {
+    const adminUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (userId !== adminUser.id) {
+      throw new UserErrors.Unauthorized();
+    }
+
     const users = await this.prisma.user.findMany({
       orderBy: { current_streak: 'desc' },
     });
 
-    const newsletters = await this.prisma.newsletters.findMany({});
-
     return {
-      totalReaders: users.length,
-      totalOpenings: newsletters.length,
       readers: users.map((u) => ({
         name: u.name,
         email: u.email,
         current_streak: u.current_streak,
       })),
     };
+  }
+
+  async getTimeSerie(
+    userId: string,
+    period: 'week' | 'month',
+  ): Promise<TimeSerieResponse[]> {
+    const adminUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (userId !== adminUser.id) {
+      throw new UserErrors.Unauthorized();
+    }
+
+    const today = new Date();
+    let startDate: Date;
+
+    if (period === 'month') {
+      startDate = new Date(2025, 0, 1);
+    } else if (period === 'week') {
+      const dayOfWeek = today.getDay();
+      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - diff);
+      startDate.setHours(0, 0, 0, 0);
+    }
+
+    const newsletters = await this.prisma.newsletters.findMany({
+      where: {
+        opened_at: {
+          gte: startDate,
+          lte: today,
+        },
+      },
+    });
+
+    if (period === 'month') {
+      const months = [
+        'Jan',
+        'Fev',
+        'Mar',
+        'Abr',
+        'Mai',
+        'Jun',
+        'Jul',
+        'Ago',
+        'Set',
+        'Out',
+        'Nov',
+        'Dez',
+      ];
+      const grouped: Record<string, number> = {};
+
+      newsletters.forEach((newsletter) => {
+        const monthIndex = newsletter.opened_at.getMonth();
+        const monthLabel = months[monthIndex];
+        grouped[monthLabel] = (grouped[monthLabel] || 0) + 1;
+      });
+
+      const result = Object.entries(grouped)
+        .map(([label, total]) => ({ label, total }))
+        .sort((a, b) => months.indexOf(a.label) - months.indexOf(b.label));
+
+      return result;
+    }
+
+    if (period === 'week') {
+      const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'];
+      const grouped: Record<string, number> = {};
+
+      newsletters.forEach((newsletter) => {
+        const day = newsletter.opened_at.getDay();
+        const dayLabel = day === 0 ? 'Dom' : weekDays[day - 1];
+        grouped[dayLabel] = (grouped[dayLabel] || 0) + 1;
+      });
+
+      const result = Object.entries(grouped)
+        .map(([label, total]) => ({ label, total }))
+        .sort((a, b) => weekDays.indexOf(a.label) - weekDays.indexOf(b.label));
+
+      return result;
+    }
+
+    return [];
   }
 }

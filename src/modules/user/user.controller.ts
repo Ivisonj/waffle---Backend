@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Req,
   UseGuards,
@@ -41,12 +42,89 @@ export class UserController {
       }
     }
   }
+
   @UseGuards(AuthGuard)
-  @Get('admin/dashboard')
-  async adminDashboard(@Req() headerData: UserHeaderDataDTO) {
+  @Get('admin/users/period/:period')
+  async getUsersByPeriod(
+    @Req() headerData: UserHeaderDataDTO,
+    @Param('period') paramData: 'week' | 'month' | 'year',
+  ) {
     try {
       const userId = headerData.userId;
-      const data = await this.repo.getAdminDashboard(userId);
+      const data = await this.repo.getUsersByPeriod(userId, paramData);
+      return data;
+    } catch (error) {
+      if (error.message === UserErrors) {
+        throw new ConflictException(error);
+      } else {
+        throw new BadRequestException(error);
+      }
+    }
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('admin/users/activity-status/:status')
+  async usersByActivityStatus(
+    @Req() headerData: UserHeaderDataDTO,
+    @Param('status') paramData: 'all' | 'active' | 'inactive',
+  ) {
+    try {
+      const userId = headerData.userId;
+      const data = await this.repo.getUsersByActivityStatus(userId, paramData);
+      return data;
+    } catch (error) {
+      if (error.message === UserErrors) {
+        throw new ConflictException(error);
+      } else {
+        throw new BadRequestException(error);
+      }
+    }
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('admin/users/newsletter/:resource_id')
+  async usersByNewsletter(
+    @Req() headerData: UserHeaderDataDTO,
+    @Param('resource_id') paramData: string,
+  ) {
+    try {
+      const userId = headerData.userId;
+      const data = await this.repo.getUsersByNewsletter(userId, paramData);
+      return data;
+    } catch (error) {
+      if (error.message === UserErrors) {
+        throw new ConflictException(error);
+      } else {
+        throw new BadRequestException(error);
+      }
+    }
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('admin/ranking')
+  async readersRanking(@Req() headerData: UserHeaderDataDTO) {
+    try {
+      const userId = headerData.userId;
+      const data = await this.repo.readersRanking(userId);
+      return data;
+    } catch (error) {
+      if (error.message === UserErrors) {
+        throw new ConflictException(error);
+      } else {
+        throw new BadRequestException(error);
+      }
+    }
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('admin/dashboard/time-serie/:period')
+  async timeSerie(
+    @Req() headerData: UserHeaderDataDTO,
+    @Param('period') paramData: 'week' | 'month',
+  ) {
+    try {
+      const userId = headerData.userId;
+      const data = await this.repo.getTimeSerie(userId, paramData);
       return data;
     } catch (error) {
       if (error.message === UserErrors) {
