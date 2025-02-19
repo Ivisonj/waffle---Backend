@@ -6,7 +6,7 @@ import {
   CreateUserAccountDTO,
   ReadersRankingResponse,
   TimeSerieResponse,
-  UsersByPeriodReponse,
+  UsersMetricReponse,
 } from './user.DTO';
 import { UserDashboardResponse, SignInResponse } from './user.DTO';
 import { MessageResponse } from './user.messageResponse';
@@ -89,7 +89,7 @@ export class UserService {
   async getUsersByPeriod(
     userId: string,
     period: 'week' | 'month' | 'year',
-  ): Promise<UsersByPeriodReponse> {
+  ): Promise<UsersMetricReponse> {
     const adminUser = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -125,6 +125,34 @@ export class UserService {
     });
 
     return { totalReaders: users.length };
+  }
+
+  async getUsersByActivityStatus(
+    userId,
+    status: 'all' | 'active' | 'inactive',
+  ): Promise<UsersMetricReponse> {
+    const adminUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (userId !== adminUser.id) {
+      throw new UserErrors.Unauthorized();
+    }
+
+    if (status === 'all') {
+      const users = await this.prisma.user.findMany({});
+      return { totalReaders: users.length };
+    } else if (status === 'active') {
+      const activeUsers = await this.prisma.user.findMany({
+        where: { current_streak: { gt: 1 } },
+      });
+      return { totalReaders: activeUsers.length };
+    } else {
+      const inactiveUsers = await this.prisma.user.findMany({
+        where: { current_streak: 1 },
+      });
+      return { totalReaders: inactiveUsers.length };
+    }
   }
 
   async readersRanking(userId: string): Promise<ReadersRankingResponse> {

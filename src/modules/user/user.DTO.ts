@@ -38,7 +38,7 @@ export class UserDashboardResponse {
   messages: string[];
 }
 
-export class UsersByPeriodReponse {
+export class UsersMetricReponse {
   @ApiProperty()
   totalReaders: number;
 }
