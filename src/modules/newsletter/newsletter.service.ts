@@ -8,10 +8,24 @@ export class NewsletterService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createNewsletter(newsletter: createNewsletterDTO) {
-    const createNewsletter = await this.prisma.newsletters.create({
+    let findNewsletter = await this.prisma.newsletters.findUnique({
+      where: { resource_id: newsletter.resource_id },
+    });
+
+    if (!findNewsletter) {
+      findNewsletter = await this.prisma.newsletters.create({
+        data: {
+          id: uuid(),
+          resource_id: newsletter.resource_id,
+          title: newsletter.title,
+        },
+      });
+    }
+
+    const openEvent = await this.prisma.open_Events.create({
       data: {
         id: uuid(),
-        resource_id: newsletter.resource_id,
+        newsletter_id: newsletter.resource_id,
         userId: newsletter.userId,
         opened_at: new Date(),
         utm_source: newsletter.utm_source,
@@ -21,33 +35,28 @@ export class NewsletterService {
       },
     });
 
-    if (createNewsletter) {
-      const findLastOpening = await this.prisma.newsletters.findFirst({
+    if (openEvent) {
+      const lastOpenEvent = await this.prisma.open_Events.findFirst({
         where: {
           userId: newsletter.userId,
-          id: { not: createNewsletter.id },
+          id: { not: openEvent.id },
         },
-        select: {
-          opened_at: true,
-        },
-        orderBy: {
-          opened_at: 'desc',
-        },
+        select: { opened_at: true },
+        orderBy: { opened_at: 'desc' },
       });
 
-      if (!findLastOpening) {
+      if (!lastOpenEvent) {
         await this.prisma.user.update({
           where: { id: newsletter.userId },
-          data: {
-            current_streak: 1,
-          },
+          data: { current_streak: 1 },
         });
         return;
       }
 
-      const lastOpeningDate = new Date(findLastOpening.opened_at);
-      const lastOpeningDay = lastOpeningDate.getDay();
+      const lastOpeningDate = new Date(lastOpenEvent.opened_at);
       const currentDate = new Date();
+
+      const lastOpeningDay = lastOpeningDate.getDay();
       const currentDay = currentDate.getDay();
 
       const isConsecutiveDay =
@@ -55,19 +64,15 @@ export class NewsletterService {
         currentDay === lastOpeningDay + 1;
 
       if (isConsecutiveDay) {
-        const updatedCurrent_streak = await this.prisma.user.update({
+        const updatedUser = await this.prisma.user.update({
           where: { id: newsletter.userId },
-          data: {
-            current_streak: { increment: 1 },
-          },
+          data: { current_streak: { increment: 1 } },
         });
 
-        if (updatedCurrent_streak.current_streak % 6 === 0) {
+        if (updatedUser.current_streak % 6 === 0) {
           await this.prisma.user.update({
             where: { id: newsletter.userId },
-            data: {
-              level: { increment: 1 },
-            },
+            data: { level: { increment: 1 } },
           });
         }
       } else {
@@ -78,17 +83,13 @@ export class NewsletterService {
         if (user.current_streak > user.best_streak) {
           await this.prisma.user.update({
             where: { id: newsletter.userId },
-            data: {
-              best_streak: user.current_streak,
-            },
+            data: { best_streak: user.current_streak },
           });
         }
 
         await this.prisma.user.update({
           where: { id: newsletter.userId },
-          data: {
-            current_streak: 1,
-          },
+          data: { current_streak: 1 },
         });
       }
     }

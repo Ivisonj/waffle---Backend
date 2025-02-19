@@ -36,17 +36,16 @@ export class UserService {
 
   async signIn(email: string): Promise<SignInResponse> {
     const user = await this.prisma.user.findUnique({
-      where: { email: email },
+      where: { email },
     });
 
     if (!user) throw new NotFoundException('Usuário não encontrado');
 
     const payload = { sub: user.id, email: user.email };
-
     const access_token = await this.jwtService.signAsync(payload);
 
     return {
-      access_token: access_token,
+      access_token,
       email: user.email,
       isAdmin: user.isAdmin,
     };
@@ -61,22 +60,23 @@ export class UserService {
       throw new UserErrors.Unauthorized();
     }
 
-    const newsletters = await this.prisma.newsletters.findMany({
-      where: { userId: userId },
+    const openEvents = await this.prisma.open_Events.findMany({
+      where: { userId },
+      include: { newsletter: true },
     });
 
     return {
       current_streak: user.current_streak,
       best_streak: user.best_streak,
       level: user.level,
-      openingHistory: newsletters.map((n) => ({
-        id: n.id,
-        resource_id: n.resource_id,
-        opened_at: n.opened_at,
-        utm_source: n.utm_source,
-        utm_medium: n.utm_medium,
-        utm_campaign: n.utm_campaign,
-        utm_channel: n.utm_channel,
+      openingHistory: openEvents.map((event) => ({
+        id: event.id,
+        resource_id: event.newsletter.resource_id,
+        opened_at: event.opened_at,
+        utm_source: event.utm_source,
+        utm_medium: event.utm_medium,
+        utm_campaign: event.utm_campaign,
+        utm_channel: event.utm_channel,
       })),
       messages: [
         new MessageResponse(user.current_streak).getCurrentStreakMessage(),
@@ -91,7 +91,7 @@ export class UserService {
     period: 'week' | 'month' | 'year',
   ): Promise<UsersMetricReponse> {
     const adminUser = await this.prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: userId, isAdmin: true },
     });
 
     if (userId !== adminUser.id) {
@@ -128,11 +128,11 @@ export class UserService {
   }
 
   async getUsersByActivityStatus(
-    userId,
+    userId: string,
     status: 'all' | 'active' | 'inactive',
   ): Promise<UsersMetricReponse> {
     const adminUser = await this.prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: userId, isAdmin: true },
     });
 
     if (userId !== adminUser.id) {
@@ -160,19 +160,19 @@ export class UserService {
     resource_id: string,
   ): Promise<UsersMetricReponse> {
     const adminUser = await this.prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: userId, isAdmin: true },
     });
 
     if (userId !== adminUser.id) {
       throw new UserErrors.Unauthorized();
     }
 
-    const newsletterOpens = await this.prisma.newsletters.findMany({
-      where: { resource_id },
+    const newsletterOpens = await this.prisma.open_Events.findMany({
+      where: { newsletter: { resource_id } },
     });
 
     const uniqueUsers = Array.from(
-      new Set(newsletterOpens.map((nl) => nl.userId)),
+      new Set(newsletterOpens.map((event) => event.userId)),
     );
 
     return { totalReaders: uniqueUsers.length };
@@ -180,7 +180,7 @@ export class UserService {
 
   async readersRanking(userId: string): Promise<ReadersRankingResponse> {
     const adminUser = await this.prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: userId, isAdmin: true },
     });
 
     if (userId !== adminUser.id) {
@@ -205,7 +205,7 @@ export class UserService {
     period: 'week' | 'month',
   ): Promise<TimeSerieResponse[]> {
     const adminUser = await this.prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: userId, isAdmin: true },
     });
 
     if (userId !== adminUser.id) {
@@ -225,7 +225,7 @@ export class UserService {
       startDate.setHours(0, 0, 0, 0);
     }
 
-    const newsletters = await this.prisma.newsletters.findMany({
+    const openEvents = await this.prisma.open_Events.findMany({
       where: {
         opened_at: {
           gte: startDate,
@@ -251,8 +251,8 @@ export class UserService {
       ];
       const grouped: Record<string, number> = {};
 
-      newsletters.forEach((newsletter) => {
-        const monthIndex = newsletter.opened_at.getMonth();
+      openEvents.forEach((event) => {
+        const monthIndex = event.opened_at.getMonth();
         const monthLabel = months[monthIndex];
         grouped[monthLabel] = (grouped[monthLabel] || 0) + 1;
       });
@@ -268,8 +268,8 @@ export class UserService {
       const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab', 'Dom'];
       const grouped: Record<string, number> = {};
 
-      newsletters.forEach((newsletter) => {
-        const day = newsletter.opened_at.getDay();
+      openEvents.forEach((event) => {
+        const day = event.opened_at.getDay();
         const dayLabel = day === 0 ? 'Dom' : weekDays[day - 1];
         grouped[dayLabel] = (grouped[dayLabel] || 0) + 1;
       });
