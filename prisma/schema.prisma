@@ -23,19 +23,29 @@ model User {
   level          Int        @default(1)
   created_at     DateTime   @default(now())
 
-  newsletters    Newsletters[]
+  openEvents    Open_Events[]
 }
 
 model Newsletters {
   id            String     @id @default(uuid()) @db.Uuid
-  name          String?
-  resource_id   String
-  userId        String     @db.Uuid
-  opened_at     DateTime   @default(now())
+  resource_id   String     @unique
+  title         String?
+  created_at    DateTime   @default(now())
+
+  openEvents    Open_Events[]
+}
+
+
+model Open_Events {
+  id            String      @id @default(uuid()) @db.Uuid
+  newsletter_id String
+  userId        String      @db.Uuid
+  opened_at     DateTime    @default(now())
   utm_source    String?
   utm_medium    String?
   utm_campaign  String?
   utm_channel   String?
 
-  user          User       @relation(fields: [userId], references: [id]) 
+  user          User        @relation(fields: [userId], references: [id]) 
+  newsletter    Newsletters @relation(fields: [newsletter_id], references: [resource_id]) 
 }
