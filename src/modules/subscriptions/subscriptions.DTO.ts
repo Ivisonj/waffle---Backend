@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateSubscriptionDTO {
   @ApiProperty()
@@ -10,6 +10,10 @@ export class CreateSubscriptionDTO {
   @IsNotEmpty()
   @IsString()
   resource_id: string;
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  title?: string;
   @ApiProperty()
   utm_source?: string;
   @ApiProperty()

@@ -10,13 +10,14 @@ import { SubscriptionsService } from './subscriptions.service';
 import { CreateSubscriptionDTO } from './subscriptions.DTO';
 import { SubscriptionsErrors } from './subscriptions.errors';
 
-@Controller('api/v1/subscriptions')
+@Controller('api/v1/webhook')
 export class SubscriptionsController {
   constructor(private readonly repo: SubscriptionsService) {}
 
   @Post()
-  async sub(@Body(new ValidationPipe()) data: CreateSubscriptionDTO) {
+  async webhook(@Body() data: any) {
     try {
+      console.log('data:', data);
       await this.repo.subscriptions(data);
       return { message: 'Sucesso!' };
     } catch (error) {

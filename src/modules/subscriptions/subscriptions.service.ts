@@ -25,6 +25,7 @@ export class SubscriptionsService {
     await this.newsletterService.createNewsletter({
       resource_id: data.resource_id,
       userId: user.id,
+      title: data.title,
       utm_source: data.utm_source,
       utm_medium: data.utm_medium,
       utm_campaign: data.utm_campaign,

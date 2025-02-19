@@ -2,6 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/shared/infra/database/prisma.service';
 import { createNewsletterDTO } from './newsletter.DTO';
+import { NewsletterErrors } from './newsletter.errors';
 
 @Injectable()
 export class NewsletterService {
@@ -11,6 +12,18 @@ export class NewsletterService {
     let findNewsletter = await this.prisma.newsletters.findUnique({
       where: { resource_id: newsletter.resource_id },
     });
+
+    const verifyUserNewsletterRegistration =
+      await this.prisma.open_Events.findFirst({
+        where: {
+          userId: newsletter.userId,
+          newsletter_id: newsletter.resource_id,
+        },
+      });
+
+    if (verifyUserNewsletterRegistration) {
+      throw new NewsletterErrors.NewsletterAlreadyRegistered();
+    }
 
     if (!findNewsletter) {
       findNewsletter = await this.prisma.newsletters.create({
@@ -55,13 +68,22 @@ export class NewsletterService {
 
       const lastOpeningDate = new Date(lastOpenEvent.opened_at);
       const currentDate = new Date();
+      lastOpeningDate.setHours(0, 0, 0, 0);
+      currentDate.setHours(0, 0, 0, 0);
 
       const lastOpeningDay = lastOpeningDate.getDay();
       const currentDay = currentDate.getDay();
 
+      const diffOneDay =
+        (currentDate.getTime() - lastOpeningDate.getTime()) /
+        (1000 * 60 * 60 * 24);
+      const diffTwoDays =
+        (currentDate.getTime() - lastOpeningDate.getTime()) /
+        (1000 * 60 * 60 * 48);
+
       const isConsecutiveDay =
-        (lastOpeningDay === 6 && currentDay === 1) ||
-        currentDay === lastOpeningDay + 1;
+        (lastOpeningDay === 6 && currentDay === 1 && diffTwoDays) ||
+        (currentDay === lastOpeningDay + 1 && diffOneDay);
 
       if (isConsecutiveDay) {
         const updatedUser = await this.prisma.user.update({
