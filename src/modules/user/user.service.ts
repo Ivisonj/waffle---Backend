@@ -2,7 +2,12 @@ import { v4 as uuid } from 'uuid';
 import { JwtService } from '@nestjs/jwt';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/shared/infra/database/prisma.service';
-import { CreateUserAccountDTO, IReaders, TimeSerieResponse } from './user.DTO';
+import {
+  CreateUserAccountDTO,
+  IReaders,
+  ReadersRankingResponse,
+  TimeSerieResponse,
+} from './user.DTO';
 import {
   UserDashboardResponse,
   SignInResponse,
@@ -103,6 +108,23 @@ export class UserService {
     return {
       totalReaders: users.length,
       totalOpenings: newsletters.length,
+    };
+  }
+
+  async readersRanking(userId: string): Promise<ReadersRankingResponse> {
+    const adminUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (userId !== adminUser.id) {
+      throw new UserErrors.Unauthorized();
+    }
+
+    const users = await this.prisma.user.findMany({
+      orderBy: { current_streak: 'desc' },
+    });
+
+    return {
       readers: users.map((u) => ({
         name: u.name,
         email: u.email,

@@ -38,17 +38,20 @@ export class UserDashboardResponse {
   messages: string[];
 }
 
+export class AdminDashboardResponse {
+  @ApiProperty()
+  totalReaders: number;
+  @ApiProperty()
+  totalOpenings: number;
+}
+
 export interface IReaders {
   name: string;
   email: string;
   current_streak: number;
 }
 
-export class AdminDashboardResponse {
-  @ApiProperty()
-  totalReaders: number;
-  @ApiProperty()
-  totalOpenings: number;
+export class ReadersRankingResponse {
   @ApiProperty()
   readers: IReaders[];
 }
