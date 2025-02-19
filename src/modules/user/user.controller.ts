@@ -82,6 +82,25 @@ export class UserController {
   }
 
   @UseGuards(AuthGuard)
+  @Get('admin/users/newsletter/:resource_id')
+  async usersByNewsletter(
+    @Req() headerData: UserHeaderDataDTO,
+    @Param('resource_id') paramData: string,
+  ) {
+    try {
+      const userId = headerData.userId;
+      const data = await this.repo.getUsersByNewsletter(userId, paramData);
+      return data;
+    } catch (error) {
+      if (error.message === UserErrors) {
+        throw new ConflictException(error);
+      } else {
+        throw new BadRequestException(error);
+      }
+    }
+  }
+
+  @UseGuards(AuthGuard)
   @Get('admin/ranking')
   async readersRanking(@Req() headerData: UserHeaderDataDTO) {
     try {

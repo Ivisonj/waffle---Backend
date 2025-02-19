@@ -155,6 +155,29 @@ export class UserService {
     }
   }
 
+  async getUsersByNewsletter(
+    userId: string,
+    resource_id: string,
+  ): Promise<UsersMetricReponse> {
+    const adminUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (userId !== adminUser.id) {
+      throw new UserErrors.Unauthorized();
+    }
+
+    const newsletterOpens = await this.prisma.newsletters.findMany({
+      where: { resource_id },
+    });
+
+    const uniqueUsers = Array.from(
+      new Set(newsletterOpens.map((nl) => nl.userId)),
+    );
+
+    return { totalReaders: uniqueUsers.length };
+  }
+
   async readersRanking(userId: string): Promise<ReadersRankingResponse> {
     const adminUser = await this.prisma.user.findUnique({
       where: { id: userId },
