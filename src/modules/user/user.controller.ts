@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Req,
   UseGuards,
@@ -41,12 +42,32 @@ export class UserController {
       }
     }
   }
+
   @UseGuards(AuthGuard)
   @Get('admin/dashboard')
   async adminDashboard(@Req() headerData: UserHeaderDataDTO) {
     try {
       const userId = headerData.userId;
       const data = await this.repo.getAdminDashboard(userId);
+      return data;
+    } catch (error) {
+      if (error.message === UserErrors) {
+        throw new ConflictException(error);
+      } else {
+        throw new BadRequestException(error);
+      }
+    }
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('admin/dashboard/time-serie/:period')
+  async timeSerie(
+    @Req() headerData: UserHeaderDataDTO,
+    @Param('period') paramData: 'week' | 'month',
+  ) {
+    try {
+      const userId = headerData.userId;
+      const data = await this.repo.getTimeSerie(userId, paramData);
       return data;
     } catch (error) {
       if (error.message === UserErrors) {

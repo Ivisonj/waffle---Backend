@@ -52,3 +52,10 @@ export class AdminDashboardResponse {
   @ApiProperty()
   readers: IReaders[];
 }
+
+export class TimeSerieResponse {
+  @ApiProperty()
+  day: Date;
+  @ApiProperty()
+  total: number;
+}

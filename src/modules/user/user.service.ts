@@ -2,7 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { JwtService } from '@nestjs/jwt';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/shared/infra/database/prisma.service';
-import { CreateUserAccountDTO, IReaders } from './user.DTO';
+import { CreateUserAccountDTO, IReaders, TimeSerieResponse } from './user.DTO';
 import {
   UserDashboardResponse,
   SignInResponse,
@@ -86,6 +86,14 @@ export class UserService {
   }
 
   async getAdminDashboard(userId: string): Promise<AdminDashboardResponse> {
+    const adminUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (userId !== adminUser.id) {
+      throw new UserErrors.Unauthorized();
+    }
+
     const users = await this.prisma.user.findMany({
       orderBy: { current_streak: 'desc' },
     });
@@ -101,5 +109,56 @@ export class UserService {
         current_streak: u.current_streak,
       })),
     };
+  }
+
+  async getTimeSerie(
+    userId: string,
+    period: 'week' | 'month',
+  ): Promise<TimeSerieResponse[]> {
+    const adminUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!adminUser || userId !== adminUser.id) {
+      throw new UserErrors.Unauthorized();
+    }
+
+    const today = new Date();
+    let startDate: Date;
+
+    if (period === 'month') {
+      startDate = new Date(2025, 0, 1);
+    } else if (period === 'week') {
+      const dayOfWeek = today.getDay();
+      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - diff);
+      startDate.setHours(0, 0, 0, 0);
+    }
+
+    const newsletters = await this.prisma.newsletters.findMany({
+      where: {
+        opened_at: {
+          gte: startDate,
+          lte: today,
+        },
+      },
+    });
+
+    const grouped: Record<string, number> = {};
+
+    newsletters.forEach((newsletter) => {
+      const dateKey = newsletter.opened_at.toISOString().slice(0, 10);
+      grouped[dateKey] = (grouped[dateKey] || 0) + 1;
+    });
+
+    const timeSeries: TimeSerieResponse[] = Object.entries(grouped)
+      .map(([date, total]) => ({
+        day: new Date(date),
+        total,
+      }))
+      .sort((a, b) => a.day.getTime() - b.day.getTime());
+
+    return timeSeries;
   }
 }
